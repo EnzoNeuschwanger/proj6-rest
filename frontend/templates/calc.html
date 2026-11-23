@@ -1,0 +1,257 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<title>ACP Controle Times</title>
+
+  <!-- 'viewport' is used by bootstrap to respond to device size -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Javascript:  JQuery from a content distribution network (CDN) -->
+  <script
+     src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js">
+  </script>
+
+  <!-- Bootstrap includes javascript and css  (must follow jquery) -->
+  <link rel="stylesheet"
+   href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+   <script
+    src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js">
+   </script>
+
+  <!-- moment.js is the JavaScript equivalent of arrow.py -->
+  <script 
+    src="{{ url_for('static', filename="js/moment.min.js") }}"></script>
+
+</head>
+
+   <!-- Our own style sheet -->
+   <link rel="stylesheet" href="/static/css/calc.css" />
+
+<body>
+<!-- bootstrap requires a 'container' div around content -->
+<div class="container">
+
+<h1>ACP Brevet Times</h1>
+  <p>This worksheet is for ACP-sanctioned brevets between 200 and 1000 kilometers</p>
+
+  <!--
+  -- If there are any warnings or other messages from a prior
+  -- request to the server, 
+  -- they appear above the rest of the content, just until the next 
+  -- action.  (This is only on request/response transactions that
+  -- result in regenerating the page, not on every xmlhttp request.) 
+  -->
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <li>{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
+<!-- Design on bootstrap grid -->
+<form role="form">
+<div class="row">
+  <div class="col-md-4">
+    <label>Distance</label>
+  <select name="distance" id="brevet_dist_km">
+    <option value="200">200km</option>
+    <option value="300">300km</option>
+    <option value="400">400km</option>
+    <option value="600">600km</option>
+    <option value="1000">1000km</option>
+  </select>
+  </div> <!-- columns 1--4  -->
+  <div class="col-md-6">
+    <label>Begins at</label>
+    <input type=date name="begin_date" id="begin_date" value="2017-01-01" />
+    <input type=time name="begin_time" id="begin_time" value="00:00"    />
+  </div> <!-- columns 5-10 -->
+  </div> <!-- row -->
+
+  <br />  <!-- Cosmetic -- a little vertical space -->
+  <!-- Although we do not use tables for general page layout, they are
+       appropriate for something that really is a table, like this
+       one.  We allocate it the full 12 columns of the bootstrap grid.
+  -->
+  <div class="row">
+  <div class="col-md-12"> 
+  <table class="control_time_table">
+      <tr>
+	<th> Miles </th>
+	<th> Km </th>
+	<th>Location</th>
+	<th>Open</th>
+	<th>Close</th>
+	<th>Notes</th>
+      </tr>
+   {% for row in range(20) %}
+    <tr class="control">
+      <!-- Dist (mi) -->
+      <td><input name="miles" type="number" 
+           min="0" max="900" size="5" /></td>
+      <!-- Dist (km) -->
+      <td><input name="km" type="text"
+	   min="0" max="1100" size="5" /> </td>
+      <!-- Location (optional) -->
+      <td><input name="location" type="text" 
+        placeholder="Optional location name"
+	size="20" /> </td>
+      <!-- Open time (read only, set by JavaScript function -->
+      <td><input name="open" type="datetime" value="" readonly /></td>
+      <!-- Close time (read only, set by JavaScript function -->
+      <td><input name="close" type="datetime" value="" readonly /></td>
+      <!-- Notes (error messages for this row) -->
+      <td class="notes"> &nbsp; </td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div> <!-- col -->
+  </div> <!-- row -->
+  <div class='status_messages'></div>
+ </form>
+<button name='submit'>Submit</button><button name='display'>Display</button>
+
+<script type="text/javascript">
+
+  var SCRIPT_ROOT = {{ request.script_root|tojson|safe }} ;
+  var TIME_CALC_URL = SCRIPT_ROOT + "/_calc_times";
+
+  // Pass calctimes a <td> element containing the data for a control.
+  // It extracts the distance and calls the server to get times to
+  // fill in open and close times in a human-readable format.
+  // (If we want to also keep the ISO-formatted times, we'll need to
+  // stash them in hidden fields.) 
+  function calc_times(control) {
+    var km = control.find("input[name='km']").val();
+    var race_distance = $(brevet_dist_km).val();
+    var base_date = $(begin_date).val();
+    var base_time = $(begin_time).val();
+    var open_time_field = control.find("input[name='open']");
+    var close_time_field = control.find("input[name='close']");
+    var stats = control.find("td[class='notes']");
+	  window.console.log(stats)
+	  //window.console.log(control);
+    
+    $.getJSON(TIME_CALC_URL, { km: km, race_distance: race_distance, time: base_time, day: base_date}, 
+      // response handler
+      function(data) {
+         var times = data.result;
+         console.log("Got a response: " +  times);
+         console.log("Response.open = " + times.open);
+	 console.log("Response.open = " + times.close);
+	 //console.log(moment(times.open));
+	 //console.log(moment(times.close));
+	      if(times.open != "NEGATIVE_DISTANCE" && times.close != "NEGATIVE_DISTANCE"){
+			stats.html('')
+         		open_time_field.val( moment.utc(times.open).format("ddd M/D H:mm "));
+         		close_time_field.val( moment.utc(times.close).format("ddd M/D H:mm "));
+	      }else{
+		stats.html("Error: Negative Distance!");
+	      }
+       } // end of handler function
+     );// End of getJSON
+    }
+
+  function upload(){
+	//Get the ride info
+	ride = {};
+	ride["distance"] = $('select[name="distance"]').val();
+	ride["begin_date"] = $('input[name="begin_date"]').val();
+	ride["begin_time"] = $('input[name="begin_time"]').val();
+
+	//Get the controls
+	var table = $('tr[class="control"]')
+	for(i = 0; table.length > 0; i++){
+		var miles = table.find("input[name='miles']").val();
+		var km = table.find("input[name='km']").val();
+		var local = table.find("input[name='location']").val();
+		var open_t = table.find("input[name='open']").val();
+		var close_t = table.find("input[name='close']").val();
+		
+		//Prevent submitting Empty/Faulty brevets
+		if(km == "" || miles == "" || open_t == "" || close_t == ""){
+			window.console.log("This brevet has missing data, skipping.")
+			table.find("td[class='notes']")[0].innerHTML = 'ignoring empty data';
+			table = table.next();
+			i--;
+			continue;
+		}
+	
+
+		//window.console.log('Brevet' + i + ': ' + km + ',' + open_t);
+		brevet = ({'miles': miles, 'km': km, 'location': local, 
+			'open_t': open_t, 'close_t': close_t, 'item': i});
+		/*
+		(function(){
+			var note_tab = table.find("td[class='notes']")[0];
+			$.getJSON(SCRIPT_ROOT + '/insert', brevet, function(data){
+				if(data['error'] == undefined){
+					note_tab.innerHTML = 'Upload Sucess!';
+				}else{
+					note_tab.innerHTML = 'FAILED!';
+				}
+			});
+		})();
+		//window.console.log(submission['brevet' + i])
+		*/
+		ride["control" + i] = brevet;
+		table = table.next();
+	}
+	var status_message = $('div[class="status_messages"]');
+	$.getJSON(SCRIPT_ROOT + '/insert', ride, function(data){
+			if(data['error'] == undefined){
+				status_message.html('Upload Sucess!');
+			}else{
+				status_message.html('FAILED!');
+			}
+	});
+
+
+}
+
+  $(document).ready(function(){
+   // Do the following when the page is finished loading
+
+      $('input[name="miles"]').change(
+         function() {
+             var miles = parseFloat($(this).val());
+             var km = (1.609344 * miles).toFixed(1) ;
+             console.log("Converted " + miles + " miles to " + km + " kilometers");
+             var control_entry = $(this).parents(".control")
+             var target = control_entry.find("input[name='km']");
+             target.val( km );
+             // Then calculate times for this entry
+             calc_times(control_entry);
+          });
+
+      $('input[name="km"]').change(
+         function() {
+             var km = parseFloat($(this).val());
+             var miles = (0.621371 * km).toFixed(1) ;
+             console.log("Converted " + km + " km to " + miles + " miles");
+             var control_entry = $(this).parents(".control")
+             var target = control_entry.find("input[name='miles']");
+             target.val( miles );
+             // Then calculate times for this entry
+             calc_times(control_entry);
+          });
+
+
+    // Setup buttons
+	$('button[name="display"]').click(function() {
+		window.location.href = '/display'
+	  })
+	$('button[name="submit"]').click(function() {
+		upload();
+	  })
+
+     });   // end of what we do on document ready
+
+
+</script>
+
+</div>
+</body> </html>

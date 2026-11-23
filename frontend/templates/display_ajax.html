@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<title>ACP Controle Times</title>
+
+  <!-- 'viewport' is used by bootstrap to respond to device size -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Javascript:  JQuery from a content distribution network (CDN) -->
+  <script
+     src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js">
+  </script>
+
+  <!-- Bootstrap includes javascript and css  (must follow jquery) -->
+  <link rel="stylesheet"
+   href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+   <script
+    src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js">
+   </script>
+
+  <!-- moment.js is the JavaScript equivalent of arrow.py -->
+  <script 
+    src="{{ url_for('static', filename="js/moment.min.js") }}"></script>
+
+</head>
+
+   <!-- Our own style sheet -->
+   <link rel="stylesheet" href="/static/css/calc.css" />
+
+<body>
+<!-- bootstrap requires a 'container' div around content -->
+<div class="container">
+
+<table name='table'></table>
+
+
+
+<!-- Design on bootstrap grid -->
+<input type="radio" id="json" name="format" value="json" checked>
+	<label for="json">Display in browser with JSON</label>
+	</br>
+<input type="radio" id="csv" name="format" value="csv">
+	<label for="csv">Download as a CSV</label>
+	</br>
+<input type="number" id="limit" name="top" min="0" max="100">
+	<label for="limit">Top (0 = No Limit)</label>
+	</br>
+<input type="radio" id="listAll" name="info" value="listAll" checked>
+	<label for="listAll">Get all data</label>
+<input type="radio" id="listOpenOnly" name="info" value="listOpenOnly">
+	<label for="listOpenOnly">List Open Times Only</label>	
+<input type="radio" id="listCloseOnly" name="info" value="listCloseOnly">
+	<label for="listCloseOnly">List Close Times Only</label>
+
+	</br>
+
+<button name='back'>Back to Home</button>
+<button name='get_data'>Display</button>
+
+
+</div>
+<script type="text/javascript">
+
+  var SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+	
+  function download(){
+	var request = {'type': $('input[name="info"]:checked').val()}
+	  if($('input[name="top"]').val() != "" && $('input[name="top"]').val() != "0"){
+		request['top'] = parseInt($('input[name="top"]').val());
+	  }
+	  if($('input[name="format"]:checked').val() == 'csv'){
+		var redirect = '/fetch' + '?type=' + request['type'] + '&csv=true';
+		  if(request['top'] != undefined){
+			redirect += '&top=' + request['top']
+		  }
+	  	window.location.href = redirect
+		return;
+	  }
+	var table = $('table')
+	var table_html = '<tr><th> Distance </th><th> Start Date</th><th> Start Time </th><th> Miles </th>' +
+	'<th> Km </th><th> Location </th>'
+	if(request['type'] == "listAll"){
+		table_html += '<th> Open Time</th><th> Close Time</th>';
+	}else if(request['type'] == "listOpenOnly"){
+		table_html += '<th> Open Time</th>';
+	}else if(request['type'] == "listCloseOnly"){
+		table_html += '<th> Close Time</th>';
+	}
+	table.html(table_html +'</tr>')
+	  $.getJSON(SCRIPT_ROOT + '/fetch', request, function(data){
+		window.console.log(data);	
+		for(var i = 0; data['row' + i] != undefined; i++){
+			row = '<tr><td>' + data['row' + i]['distance'] +'</td>' +
+				'<td>' + data['row' + i]['begin_date'] +'</td>' +
+				'<td>' + data['row' + i]['begin_time'] +'</td>' +
+				'<td>' +data['row' + i]['miles'] +'</td>' +
+				'<td>' + data['row' + i]['km'] +'</td>' +
+				'<td>' + data['row' + i]['location'] +'</td>';
+			if(request['type'] == "listAll"){
+				row +=  '<td>' + data['row' + i]['open_t'] +'</td>' +
+				'<td>' + data['row' + i]['close_t'] +'</td></tr>';
+			}else if(request['type'] == "listOpenOnly"){
+				row += '<td>' + data['row' + i]['open_t'] +'</td>' 
+			}else if(request['type'] == "listCloseOnly"){
+				row += '<td>' + data['row' + i]['close_t'] +'</td></tr>';
+			}
+			table.append(row);
+		}
+	  });
+	  /*
+		//window.console.log('Brevet' + i + ': ' + km + ',' + open_t);
+		brevet = ({'miles': miles, 'km': km, 'location': local, 
+			'open_t': open_t, 'close_t': close_t, 'item': i});
+		(function(){
+			var note_tab = table.find("td[class='notes']")[0];
+			$.getJSON(SCRIPT_ROOT + '/insert', brevet, function(data){
+				if(data['error'] == undefined){
+					note_tab.innerHTML = 'Upload Sucess!';
+				}else{
+					note_tab.innerHTML = 'FAILED!';
+				}
+			});
+		})();
+		//window.console.log(submission['brevet' + i])
+		table = table.next();
+		*/
+	}
+
+
+
+  $(document).ready(function(){
+   // Do the following when the page is finished loading
+     
+    // Setup buttons
+	$('button[name="back"]').click(function() {
+		window.location.href = '/'
+	  });
+	$('button[name="get_data"]').click(function() {
+		download();
+	  });
+
+
+
+	  //Download the data
+	  //download();
+
+     });   // end of what we do on document ready
+
+
+</script>
+
+</div>
+</body> </html>
