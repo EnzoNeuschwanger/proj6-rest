@@ -26,7 +26,7 @@ app.secret_key = CONFIG.SECRET_KEY
 client = pymongo.MongoClient(os.environ['DB_PORT_27017_TCP_ADDR'], 27017)
 db = client.brevetdb
 collection = db.brevetdb
-collection.drop()
+#collection.drop()
 
 def calc_str_time(begin_date, time):
     year = int(begin_date.split("-")[0])
